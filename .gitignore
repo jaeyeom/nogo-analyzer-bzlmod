@@ -1,0 +1,28 @@
+# Bazel Related
+bazel-bin
+bazel-nogo-analyzer-bzlmod
+bazel-out
+bazel-testlogs
+
+# User's .bazelrc
+.bazelrc.user
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Editor directories and files
+.idea
+.vscode
+*.sw?
+
+# OS specific
+.DS_Store
+
+# Logs
+*.log
