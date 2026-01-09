@@ -197,12 +197,17 @@ def staticcheck_analyzers(analyzers = None):
         analyzers = ANALYZERS
 
     # Build set of enabled analyzers, supporting exclusion with "-" prefix
+    # Process in two passes: first collect all additions, then apply exclusions
+    # This ensures exclusions work regardless of order in the input list
     enabled = {}
+    exclusions = []
     for a in analyzers:
         if a.startswith("-"):
-            enabled.pop(a[1:], None)
+            exclusions.append(a[1:])
         else:
             enabled[a] = True
+    for name in exclusions:
+        enabled.pop(name, None)
 
     return [
         "@nogo_analyzer_bzlmod//staticcheck:" + name

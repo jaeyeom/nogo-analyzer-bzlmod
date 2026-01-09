@@ -10,6 +10,14 @@ Add the module to your `MODULE.bazel`:
 
 ```starlark
 bazel_dep(name = "nogo_analyzer_bzlmod", version = "0.1.0")
+```
+
+### Using Unreleased Versions
+
+To use an unreleased version from the repository, you can use `git_override`:
+
+```starlark
+bazel_dep(name = "nogo_analyzer_bzlmod", version = "0.1.0")
 git_override(
     module_name = "nogo_analyzer_bzlmod",
     remote = "https://github.com/jaeyeom/nogo-analyzer-bzlmod.git",
