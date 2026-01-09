@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: echo "VERSION=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create release archive
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          # Create tarball using git archive (respects .gitattributes export-ignore)
+          git archive --format=tar.gz --prefix="nogo-analyzer-bzlmod-${VERSION}/" \
+            -o "nogo-analyzer-bzlmod-${VERSION}.tar.gz" HEAD
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: nogo-analyzer-bzlmod-${{ steps.version.outputs.VERSION }}.tar.gz
+          generate_release_notes: true
