@@ -5,8 +5,15 @@ on:
     tags:
       - "v*"
 
+# id-token is required so actions/attest can mint a short-lived
+# Sigstore signing certificate via OIDC; attestations is required so it
+# can upload the signed attestation to the GitHub attestations API.
+# We don't push to a registry or create a storage record, so no
+# additional metadata scope is needed.
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -21,15 +28,45 @@ jobs:
         run: echo "VERSION=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Create release archive
+        id: archive
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           # Create tarball using git archive (respects .gitattributes export-ignore)
+          ARCHIVE="nogo-analyzer-bzlmod-${VERSION}.tar.gz"
           git archive --format=tar.gz --prefix="nogo-analyzer-bzlmod-${VERSION}/" \
-            -o "nogo-analyzer-bzlmod-${VERSION}.tar.gz" HEAD
+            -o "${ARCHIVE}" HEAD
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_OUTPUT"
+
+      # Generate a signed SLSA build-provenance attestation for the
+      # source archive. This implements Phase 1 of BCR Provenance
+      # attestation support (see gh-issue-2 / bazel-central-registry
+      # discussion #2721). With no predicate inputs, actions/attest
+      # automatically produces a SLSA build-provenance predicate. The
+      # attestation is uploaded to the GitHub attestations API and a
+      # Sigstore bundle is written to `bundle-path`, which we attach to
+      # the release under the BCR-expected filename
+      # `<archive>.intoto.jsonl`.
+      - name: Attest source archive provenance
+        id: attest
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.archive.outputs.ARCHIVE }}
+
+      - name: Stage attestation bundle for release
+        env:
+          ARCHIVE: ${{ steps.archive.outputs.ARCHIVE }}
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          # Name the attestation file using the BCR convention so
+          # consumers (and the BCR `attestations.json` metadata) can
+          # locate it at `<archive>.intoto.jsonl`.
+          cp "${BUNDLE_PATH}" "${ARCHIVE}.intoto.jsonl"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: nogo-analyzer-bzlmod-${{ steps.version.outputs.VERSION }}.tar.gz
+          files: |
+            ${{ steps.archive.outputs.ARCHIVE }}
+            ${{ steps.archive.outputs.ARCHIVE }}.intoto.jsonl
           generate_release_notes: true
